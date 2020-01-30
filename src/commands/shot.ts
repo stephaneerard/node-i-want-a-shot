@@ -6,11 +6,13 @@ exports.command = 'shot <query>'
 exports.desc = 'take a qwant shot !'
 
 export interface ArgvInterface {
-    query?: string
+    query: string
     screenshot: boolean
-    api: boolean,
-    path: string,
+    api: boolean
+    path: string
     pages: number
+    userAgent: string
+    resolutions: Array<string>
 }
 
 exports.builder = {
@@ -29,6 +31,14 @@ exports.builder = {
     path: {
         type: 'string',
         default: process.cwd()
+    },
+    'user-agent': {
+        type: 'string',
+        default: 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion',
+    },
+    resolutions: {
+        type: 'array',
+        default: ['1920x1080']
     }
 }
 exports.handler = async function (argv: ArgvInterface) {
@@ -45,7 +55,9 @@ exports.handler = async function (argv: ArgvInterface) {
         api: argv.api,
         screenshot: argv.screenshot,
         pages: 4,
-        path: path.join(argv.path, encodedQuery, now)
+        path: path.join(argv.path, encodedQuery, now),
+        userAgent: argv.userAgent,
+        resolutions: argv.resolutions
     };
 
     await helper.takeAshot(request);

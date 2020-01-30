@@ -11,6 +11,28 @@ export interface RequestInterface {
     screenshot: boolean
     api: boolean
     pages: number
+    userAgent: string
+    resolutions: Array<string>
+}
+
+interface CallArgsInterface {
+    baseUrl: string
+    pages: number
+    loader: (page: number, baseUrl: string) => Promise<void>
+    path: string
+}
+
+async function call(args: CallArgsInterface): Promise<void> {
+    const promises: Array<Promise<void>> = (() => {
+        const _promises = [];
+        for (var i = 0, j = args.pages; i < j; i++) {
+            const _p = args.loader(i + 1, args.baseUrl);
+            _promises.push(_p);
+        }
+        return _promises;
+    })();
+
+    await Promise.all(promises)
 }
 
 export async function takeAshot(request: RequestInterface): Promise<void> {
@@ -19,78 +41,55 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
     await mkdirp(request.path);
 
     if (request.screenshot) {
-        const baseUrl = buildUrlWeb(request.query);
-        console.log('weblite: ' + baseUrl);
+        await call({
+            baseUrl: buildUrlWeb(request.query),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&page=' + page;
+                await new Pageres(
+                    {
+                        delay: 2
+                    })
+                    .src(url, request.resolutions)
+                    .dest(request.path)
+                    .run();
 
-        const call = async (page: number): Promise<void> => {
-            const url = baseUrl + '&page' + (page + 1);
-            console.log('weblite: page:' + page + ' ' + url);
-            await new Pageres(
-                {
-                    delay: 2,
-                    script: 'window.scrollTo(1920, 1)'
-                })
-                .src(url, ['1920x1080'])
-                .dest(request.path)
-                .run();
-        }
-
-        const promises: Array<Promise<void>> = (() => {
-
-            const promises = [];
-
-            for (var i = 0, j = request.pages; i < j; i++) {
-                promises.push(call(i));
-            }
-
-            return promises;
-        })();
-
-        await Promise.all(promises)
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
     }
 
     if (request.api) {
-        const baseUrl = buildUrlApi(request.query)
-        console.log('api: ' + baseUrl);
+        await call({
+            baseUrl: buildUrlApi(request.query),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&offset=' + (10 * page);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
 
-        const call = async (page: number): Promise<void> => {
-            const url = baseUrl + '&offset=' + (10 * request.pages);
-            console.log('api: page:' + page + ': ' + url);
+                const jso = JSON.parse(json);
 
-            const json = await requester({
-                url: url,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion'
-                }
-            });
+                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                    .toISOString()
+                    .replace(/:/g, '-')
+                    .replace(/\./g, '-')
+                ;
 
-            const jso = JSON.parse(json);
+                await fs.writeFile(path.join(request.path, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
-            jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                .toISOString()
-                .replace(/:/g, '-')
-                .replace(/\./g, '-')
-            ;
-
-            await fs.writeFile(path.join(request.path, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
-        }
-
-        const promises: Array<Promise<void>> = (() => {
-
-            const promises = [];
-
-            for (var i = 0, j = request.pages; i < j; i++) {
-                promises.push(call(i));
-            }
-
-            return promises;
-        })();
-
-        await Promise.all(promises)
-
-        console.log('Done.')
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        });
     }
 
+    console.log('Done.')
 }
 
 function buildUrlWeb(query: string) {

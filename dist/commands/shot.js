@@ -20,6 +20,14 @@ exports.builder = {
     path: {
         type: 'string',
         default: process.cwd()
+    },
+    'user-agent': {
+        type: 'string',
+        default: 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion',
+    },
+    resolutions: {
+        type: 'array',
+        default: ['1920x1080']
     }
 };
 exports.handler = async function (argv) {
@@ -32,7 +40,9 @@ exports.handler = async function (argv) {
         api: argv.api,
         screenshot: argv.screenshot,
         pages: 4,
-        path: path.join(argv.path, encodedQuery, now)
+        path: path.join(argv.path, encodedQuery, now),
+        userAgent: argv.userAgent,
+        resolutions: argv.resolutions
     };
     await helper.takeAshot(request);
 };
