@@ -5,7 +5,7 @@ const path = require("path");
 exports.command = 'shot <query>';
 exports.desc = 'take a qwant shot !';
 exports.builder = {
-    screenshot: {
+    lite: {
         type: 'boolean',
         default: true,
     },
@@ -38,7 +38,7 @@ exports.handler = async function (argv) {
     const request = {
         query: argv.query,
         api: argv.api,
-        screenshot: argv.screenshot,
+        lite: argv.lite,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,

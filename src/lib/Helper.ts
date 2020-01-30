@@ -8,7 +8,7 @@ const Pageres = require('pageres')
 export interface RequestInterface {
     query: string
     path: string
-    screenshot: boolean
+    lite: boolean
     api: boolean
     pages: number
     userAgent: string
@@ -40,7 +40,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     await mkdirp(request.path);
 
-    if (request.screenshot) {
+    if (request.lite) {
         await call({
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {

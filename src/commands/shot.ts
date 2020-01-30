@@ -7,7 +7,7 @@ exports.desc = 'take a qwant shot !'
 
 export interface ArgvInterface {
     query: string
-    screenshot: boolean
+    lite: boolean
     api: boolean
     path: string
     pages: number
@@ -16,7 +16,7 @@ export interface ArgvInterface {
 }
 
 exports.builder = {
-    screenshot: {
+    lite: {
         type: 'boolean',
         default: true,
     },
@@ -53,7 +53,7 @@ exports.handler = async function (argv: ArgvInterface) {
     const request: RequestInterface = {
         query: argv.query,
         api: argv.api,
-        screenshot: argv.screenshot,
+        lite: argv.lite,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,

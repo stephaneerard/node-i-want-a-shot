@@ -19,7 +19,7 @@ async function call(args) {
 async function takeAshot(request) {
     console.log('mkdir: ' + request.path);
     await mkdirp(request.path);
-    if (request.screenshot) {
+    if (request.lite) {
         await call({
             baseUrl: buildUrlWeb(request.query),
             loader: async (page, baseUrl) => {

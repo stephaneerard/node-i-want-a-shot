@@ -1,7 +1,7 @@
 export interface RequestInterface {
     query: string;
     path: string;
-    screenshot: boolean;
+    lite: boolean;
     api: boolean;
     pages: number;
     userAgent: string;

@@ -1,6 +1,6 @@
 export interface ArgvInterface {
     query: string;
-    screenshot: boolean;
+    lite: boolean;
     api: boolean;
     path: string;
     pages: number;
