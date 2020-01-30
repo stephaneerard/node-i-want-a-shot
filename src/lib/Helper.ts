@@ -10,6 +10,8 @@ export interface RequestInterface {
     path: string
     lite: boolean
     api: boolean
+    edu: boolean
+    egp: boolean
     pages: number
     userAgent: string
     resolutions: Array<string>
@@ -39,6 +41,62 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
     console.log('mkdir: ' + request.path);
 
     await mkdirp(request.path);
+
+    if (request.edu)
+        await call({
+            baseUrl: buildUrlJunior(request.query, 'edu'),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
+
+                const jso = JSON.parse(json);
+
+                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                    .toISOString()
+                    .replace(/:/g, '-')
+                    .replace(/\./g, '-')
+                ;
+
+                await fs.writeFile(path.join(request.path, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
+
+    if (request.egp)
+        await call({
+            baseUrl: buildUrlJunior(request.query, 'egp'),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
+
+                const jso = JSON.parse(json);
+
+                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                    .toISOString()
+                    .replace(/:/g, '-')
+                    .replace(/\./g, '-')
+                ;
+
+                await fs.writeFile(path.join(request.path, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
 
     if (request.lite) {
         await call({
@@ -98,4 +156,8 @@ function buildUrlWeb(query: string) {
 
 function buildUrlApi(query: string) {
     return 'https://api.qwant.com/api/search/web?count=10&q=' + encodeURI(query) + '&t=web&device=tablet&safesearch=1&locale=fr_FR&uiv=4'
+}
+
+function buildUrlJunior(query: string, juniorKind: string) {
+    return 'https://api.qwant.com/' + juniorKind + '/search/web?q=' + encodeURI(query) + '&locale=fr_FR'
 }

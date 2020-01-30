@@ -3,6 +3,8 @@ export interface RequestInterface {
     path: string;
     lite: boolean;
     api: boolean;
+    edu: boolean;
+    egp: boolean;
     pages: number;
     userAgent: string;
     resolutions: Array<string>;

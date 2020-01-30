@@ -8,10 +8,22 @@ exports.builder = {
     lite: {
         type: 'boolean',
         default: true,
+        description: 'Take a LITE shot !'
     },
     api: {
         type: 'boolean',
-        default: true
+        default: true,
+        description: 'Take an API shot !'
+    },
+    edu: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a JUNIOR/EDU shot !'
+    },
+    egp: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a JUNIOR/EGP shot !'
     },
     pages: {
         type: 'number',
@@ -39,6 +51,8 @@ exports.handler = async function (argv) {
         query: argv.query,
         api: argv.api,
         lite: argv.lite,
+        edu: argv.edu,
+        egp: argv.egp,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,
