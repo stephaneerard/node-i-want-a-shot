@@ -1,6 +1,6 @@
 {
   "name": "i-want-a-shot",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Take a shot !",
   "main": "dist/index.js",
   "scripts": {
