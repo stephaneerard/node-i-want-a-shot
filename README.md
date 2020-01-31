@@ -22,6 +22,8 @@ Options:
   --api          Take an API shot !                    [boolean] [default: true]
   --edu          Take a JUNIOR/EDU shot !              [boolean] [default: true]
   --egp          Take a JUNIOR/EGP shot !              [boolean] [default: true]
+  --bing         Take a BING shot !                    [boolean] [default: true]
+  --ecosia       Take a LILO shot !                    [boolean] [default: true]
   --pages                                                  [number] [default: 4]
   --path                              [string] [default: "C:\Users\steph\tests"]
   --user-agent
