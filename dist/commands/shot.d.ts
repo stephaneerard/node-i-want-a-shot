@@ -6,6 +6,7 @@ export interface ArgvInterface {
     egp: boolean;
     ecosia: boolean;
     bing: boolean;
+    lilo: boolean;
     path: string;
     pages: number;
     userAgent: string;

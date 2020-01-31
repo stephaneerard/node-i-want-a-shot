@@ -65,6 +65,7 @@ exports.handler = async function (argv) {
         egp: argv.egp,
         ecosia: argv.ecosia,
         bing: argv.bing,
+        lilo: argv.lilo,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,

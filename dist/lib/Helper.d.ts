@@ -7,6 +7,7 @@ export interface RequestInterface {
     egp: boolean;
     bing: boolean;
     ecosia: boolean;
+    lilo: boolean;
     pages: number;
     userAgent: string;
     resolutions: Array<string>;

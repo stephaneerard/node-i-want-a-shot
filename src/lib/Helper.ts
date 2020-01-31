@@ -14,6 +14,7 @@ export interface RequestInterface {
     egp: boolean
     bing: boolean
     ecosia: boolean
+    lilo: boolean
     pages: number
     userAgent: string
     resolutions: Array<string>
@@ -48,7 +49,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
         await call({
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&p=' + page
+                const url = baseUrl + '&p=' + (page - 1)
                 await new Pageres(
                     {
                         delay: 2
@@ -63,6 +64,24 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             path: request.path
         })
 
+    if (request.lilo)
+        await call({
+            baseUrl: buildUrlLilo(request.query),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&page=' + page
+                await new Pageres(
+                    {
+                        delay: 2
+                    })
+                    .src(url, request.resolutions)
+                    .dest(request.path)
+                    .run();
+
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
 
     if (request.bing)
         await call({
@@ -212,4 +231,9 @@ function buildUrlBing(query: string) {
 
 function buildUrlEcosia(query: string) {
     return 'https://www.ecosia.org/search?q=' + encodeURI(query);
+}
+
+
+function buildUrlLilo(query: string) {
+    return 'https://search.lilo.org/results.php?q=' + encodeURI(query);
 }

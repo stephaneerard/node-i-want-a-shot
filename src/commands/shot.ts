@@ -13,6 +13,7 @@ export interface ArgvInterface {
     egp: boolean
     ecosia: boolean
     bing: boolean
+    lilo:boolean
     path: string
     pages: number
     userAgent: string
@@ -84,6 +85,7 @@ exports.handler = async function (argv: ArgvInterface) {
         egp: argv.egp,
         ecosia: argv.ecosia,
         bing: argv.bing,
+        lilo: argv.lilo,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,
