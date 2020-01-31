@@ -5,6 +5,8 @@ export interface RequestInterface {
     api: boolean;
     edu: boolean;
     egp: boolean;
+    bing: boolean;
+    ecosia: boolean;
     pages: number;
     userAgent: string;
     resolutions: Array<string>;

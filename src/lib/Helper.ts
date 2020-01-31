@@ -12,6 +12,8 @@ export interface RequestInterface {
     api: boolean
     edu: boolean
     egp: boolean
+    bing: boolean
+    ecosia: boolean
     pages: number
     userAgent: string
     resolutions: Array<string>
@@ -42,6 +44,45 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     await mkdirp(request.path);
 
+    if (request.ecosia)
+        await call({
+            baseUrl: buildUrlEcosia(request.query),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&p=' + page
+                await new Pageres(
+                    {
+                        delay: 2
+                    })
+                    .src(url, request.resolutions)
+                    .dest(request.path)
+                    .run();
+
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
+
+
+    if (request.bing)
+        await call({
+            baseUrl: buildUrlBing(request.query),
+            loader: async (page: number, baseUrl: string): Promise<void> => {
+                const url = baseUrl + '&first=' + (7 * (page + 1))
+                await new Pageres(
+                    {
+                        delay: 2
+                    })
+                    .src(url, request.resolutions)
+                    .dest(request.path)
+                    .run();
+
+                console.log('Done ' + url);
+            },
+            pages: request.pages,
+            path: request.path
+        })
+
     if (request.edu)
         await call({
             baseUrl: buildUrlJunior(request.query, 'edu'),
@@ -56,11 +97,12 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                    .toISOString()
-                    .replace(/:/g, '-')
-                    .replace(/\./g, '-')
-                ;
+                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
 
                 await fs.writeFile(path.join(request.path, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
@@ -84,11 +126,12 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                    .toISOString()
-                    .replace(/:/g, '-')
-                    .replace(/\./g, '-')
-                ;
+                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
 
                 await fs.writeFile(path.join(request.path, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
@@ -132,11 +175,12 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                    .toISOString()
-                    .replace(/:/g, '-')
-                    .replace(/\./g, '-')
-                ;
+                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
 
                 await fs.writeFile(path.join(request.path, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
@@ -160,4 +204,12 @@ function buildUrlApi(query: string) {
 
 function buildUrlJunior(query: string, juniorKind: string) {
     return 'https://api.qwant.com/' + juniorKind + '/search/web?q=' + encodeURI(query) + '&locale=fr_FR'
+}
+
+function buildUrlBing(query: string) {
+    return 'https://www.bing.com/search?q=' + encodeURI(query)
+}
+
+function buildUrlEcosia(query: string) {
+    return 'https://www.ecosia.org/search?q=' + encodeURI(query);
 }

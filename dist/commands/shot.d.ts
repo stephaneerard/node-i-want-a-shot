@@ -4,6 +4,8 @@ export interface ArgvInterface {
     api: boolean;
     edu: boolean;
     egp: boolean;
+    ecosia: boolean;
+    bing: boolean;
     path: string;
     pages: number;
     userAgent: string;

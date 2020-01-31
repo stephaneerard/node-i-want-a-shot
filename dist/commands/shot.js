@@ -25,6 +25,16 @@ exports.builder = {
         default: true,
         description: 'Take a JUNIOR/EGP shot !'
     },
+    bing: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a BING shot !'
+    },
+    ecosia: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a LILO shot !'
+    },
     pages: {
         type: 'number',
         default: 4
@@ -53,6 +63,8 @@ exports.handler = async function (argv) {
         lite: argv.lite,
         edu: argv.edu,
         egp: argv.egp,
+        ecosia: argv.ecosia,
+        bing: argv.bing,
         pages: 4,
         path: path.join(argv.path, encodedQuery, now),
         userAgent: argv.userAgent,
