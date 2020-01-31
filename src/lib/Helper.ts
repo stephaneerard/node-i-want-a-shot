@@ -5,9 +5,25 @@ import * as mkdirp from 'mkdirp-promise'
 
 const Pageres = require('pageres')
 
+export interface ArgvInterface {
+    query: string
+    lite: boolean
+    api: boolean
+    edu: boolean
+    egp: boolean
+    ecosia: boolean
+    bing: boolean
+    lilo: boolean
+    path: string
+    pages: number
+    userAgent: string
+    resolutions: Array<string>
+}
+
 export interface RequestInterface {
     query: string
-    path: string
+    basePath: string
+    computedPath?: string
     lite: boolean
     api: boolean
     edu: boolean
@@ -40,10 +56,70 @@ async function call(args: CallArgsInterface): Promise<void> {
     await Promise.all(promises)
 }
 
-export async function takeAshot(request: RequestInterface): Promise<void> {
-    console.log('mkdir: ' + request.path);
 
-    await mkdirp(request.path);
+export const builder = {
+    lite: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a LITE shot !'
+    },
+    api: {
+        type: 'boolean',
+        default: true,
+        description: 'Take an API shot !'
+    },
+    edu: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a JUNIOR/EDU shot !'
+    },
+    egp: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a JUNIOR/EGP shot !'
+    },
+    bing: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a BING shot !'
+    },
+    ecosia: {
+        type: 'boolean',
+        default: true,
+        description: 'Take a LILO shot !'
+    },
+    pages: {
+        type: 'number',
+        default: 4
+    },
+    path: {
+        type: 'string',
+        default: process.cwd()
+    },
+    'user-agent': {
+        type: 'string',
+        default: 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion',
+    },
+    resolutions: {
+        type: 'array',
+        default: ['1920x1080']
+    }
+}
+
+
+export async function takeAshot(request: RequestInterface): Promise<void> {
+    const encodedQuery = encodeURI(request.query);
+
+    const now = new Date().toISOString()
+        .replace(/:/g, '-')
+        .replace(/\./g, '-')
+    ;
+
+    request.computedPath = path.join(request.basePath, encodedQuery, now);
+
+    console.log('mkdir: ' + request.computedPath);
+
+    await mkdirp(request.computedPath);
 
     if (request.ecosia)
         await call({
@@ -55,14 +131,14 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.path)
+                    .dest(request.computedPath)
                     .run();
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
+            path: request.computedPath
+        });
 
     if (request.lilo)
         await call({
@@ -74,14 +150,14 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.path)
+                    .dest(request.basePath)
                     .run();
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
+            path: request.basePath
+        });
 
     if (request.bing)
         await call({
@@ -93,14 +169,14 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.path)
+                    .dest(request.basePath)
                     .run();
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
+            path: request.basePath
+        });
 
     if (request.edu)
         await call({
@@ -123,13 +199,13 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.path, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                await fs.writeFile(path.join(request.basePath, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
+            path: request.basePath
+        });
 
     if (request.egp)
         await call({
@@ -152,15 +228,15 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.path, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                await fs.writeFile(path.join(request.basePath, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
+            path: request.basePath
+        });
 
-    if (request.lite) {
+    if (request.lite)
         await call({
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
@@ -170,17 +246,17 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.path)
+                    .dest(request.basePath)
                     .run();
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
-        })
-    }
+            path: request.basePath
+        });
 
-    if (request.api) {
+
+    if (request.api)
         await call({
             baseUrl: buildUrlApi(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
@@ -201,16 +277,16 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.path, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                await fs.writeFile(path.join(request.basePath, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
                 console.log('Done ' + url);
             },
             pages: request.pages,
-            path: request.path
+            path: request.basePath
         });
-    }
 
-    console.log('Done.')
+
+    console.log('Done.');
 }
 
 function buildUrlWeb(query: string) {
