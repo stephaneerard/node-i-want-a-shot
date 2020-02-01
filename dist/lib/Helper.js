@@ -8,7 +8,7 @@ const Pageres = require('pageres');
 async function call(args) {
     const promises = (() => {
         const _promises = [];
-        for (var i = 0, j = args.pages; i < j; i++) {
+        for (let i = 0, j = args.pages; i < j; i++) {
             const _p = args.loader(i + 1, args.baseUrl);
             _promises.push(_p);
         }
@@ -83,7 +83,7 @@ async function takeAshot(request) {
                     .src(url, request.resolutions)
                     .dest(request.computedPath)
                     .run();
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
             path: request.computedPath
@@ -97,12 +97,12 @@ async function takeAshot(request) {
                     delay: 2
                 })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
     if (request.bing)
         await call({
@@ -113,12 +113,12 @@ async function takeAshot(request) {
                     delay: 2
                 })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
     if (request.edu)
         await call({
@@ -132,16 +132,17 @@ async function takeAshot(request) {
                     }
                 });
                 const jso = JSON.parse(json);
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-');
-                await fs.writeFile(path.join(request.basePath, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
-                console.log('Done ' + url);
+                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
     if (request.egp)
         await call({
@@ -155,16 +156,17 @@ async function takeAshot(request) {
                     }
                 });
                 const jso = JSON.parse(json);
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-');
-                await fs.writeFile(path.join(request.basePath, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
-                console.log('Done ' + url);
+                const jsonFilepath = path.join(request.computedPath, 'EGP__' + (page + 1) + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
     if (request.lite)
         await call({
@@ -175,12 +177,12 @@ async function takeAshot(request) {
                     delay: 2
                 })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
     if (request.api)
         await call({
@@ -194,18 +196,19 @@ async function takeAshot(request) {
                     }
                 });
                 const jso = JSON.parse(json);
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-');
-                await fs.writeFile(path.join(request.basePath, 'API__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
-                console.log('Done ' + url);
+                const jsonFilepath = path.join(request.computedPath, 'API__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
-    console.log('Done.');
+    console.log('Done %s', request.computedPath);
 }
 exports.takeAshot = takeAshot;
 function buildUrlWeb(query) {

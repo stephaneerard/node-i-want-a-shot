@@ -3,7 +3,7 @@ import * as requester from 'request-promise-native'
 import * as fs from 'fs-extra'
 import * as mkdirp from 'mkdirp-promise'
 
-const Pageres = require('pageres')
+const Pageres = require('pageres');
 
 export interface ArgvInterface {
     query: string
@@ -46,7 +46,7 @@ interface CallArgsInterface {
 async function call(args: CallArgsInterface): Promise<void> {
     const promises: Array<Promise<void>> = (() => {
         const _promises = [];
-        for (var i = 0, j = args.pages; i < j; i++) {
+        for (let i = 0, j = args.pages; i < j; i++) {
             const _p = args.loader(i + 1, args.baseUrl);
             _promises.push(_p);
         }
@@ -125,7 +125,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
         await call({
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&p=' + (page - 1)
+                const url = baseUrl + '&p=' + (page - 1);
                 await new Pageres(
                     {
                         delay: 2
@@ -134,7 +134,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                     .dest(request.computedPath)
                     .run();
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
             path: request.computedPath
@@ -144,38 +144,38 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
         await call({
             baseUrl: buildUrlLilo(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&page=' + page
+                const url = baseUrl + '&page=' + page;
                 await new Pageres(
                     {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
     if (request.bing)
         await call({
             baseUrl: buildUrlBing(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&first=' + (7 * (page + 1))
+                const url = baseUrl + '&first=' + (7 * (page + 1));
                 await new Pageres(
                     {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
     if (request.edu)
@@ -192,19 +192,20 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.basePath, 'EDU__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
     if (request.egp)
@@ -221,19 +222,20 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.basePath, 'EGP__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                const jsonFilepath = path.join(request.computedPath, 'EGP__' + (page + 1) + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
     if (request.lite)
@@ -246,13 +248,13 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         delay: 2
                     })
                     .src(url, request.resolutions)
-                    .dest(request.basePath)
+                    .dest(request.computedPath)
                     .run();
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, request.computedPath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
 
@@ -270,23 +272,24 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
                 const jso = JSON.parse(json);
 
-                if (jso && jso.data & jso.data.cache && jso.data.cache.created)
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
                     jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.basePath, 'API__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                const jsonFilepath = path.join(request.computedPath, 'API__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
 
-                console.log('Done ' + url);
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
-            path: request.basePath
+            path: request.computedPath
         });
 
 
-    console.log('Done.');
+    console.log('Done %s', request.computedPath);
 }
 
 function buildUrlWeb(query: string) {
