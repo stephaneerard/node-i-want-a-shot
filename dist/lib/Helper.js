@@ -199,7 +199,7 @@ async function takeAshot(request) {
                         .toISOString()
                         .replace(/:/g, '-')
                         .replace(/\./g, '-');
-                await fs.writeFile(path.join(request.basePath, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                await fs.writeFile(path.join(request.basePath, 'API__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
                 console.log('Done ' + url);
             },
             pages: request.pages,
