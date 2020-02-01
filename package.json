@@ -39,5 +39,5 @@
     "release.patch": "release-it patch",
     "release.major": "release-it major"
   },
-  "version": "0.0.13"
+  "version": "0.0.14"
 }
