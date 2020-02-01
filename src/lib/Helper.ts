@@ -104,7 +104,7 @@ export const builder = {
         type: 'array',
         default: ['1920x1080']
     }
-}
+};
 
 
 export async function takeAshot(request: RequestInterface): Promise<void> {
@@ -277,7 +277,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
                         .replace(/\./g, '-')
                     ;
 
-                await fs.writeFile(path.join(request.basePath, (page + 1) + '.json'), JSON.stringify(jso, null, 2));
+                await fs.writeFile(path.join(request.basePath, 'API__' + (page + 1) + '.json'), JSON.stringify(jso, null, 2));
 
                 console.log('Done ' + url);
             },
