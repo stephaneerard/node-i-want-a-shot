@@ -4,12 +4,15 @@ const path = require("path");
 const requester = require("request-promise-native");
 const fs = require("fs-extra");
 const mkdirp = require("mkdirp-promise");
+const PQueue = require("p-queue");
 const Pageres = require('pageres');
 async function call(args) {
     const promises = (() => {
         const _promises = [];
         for (let i = 0, j = args.pages; i < j; i++) {
-            const _p = args.loader(i + 1, args.baseUrl);
+            const _p = (args.queue).add(() => {
+                return args.loader(i + 1, args.baseUrl);
+            });
             _promises.push(_p);
         }
         return _promises;
@@ -45,6 +48,11 @@ exports.builder = {
     ecosia: {
         type: 'boolean',
         default: true,
+        description: 'Take a ECOSIA shot !'
+    },
+    lilo: {
+        type: 'boolean',
+        default: true,
         description: 'Take a LILO shot !'
     },
     pages: {
@@ -57,14 +65,42 @@ exports.builder = {
     },
     'user-agent': {
         type: 'string',
-        default: 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion',
+        default: 'Mozilla/5.0 (platform; rv:1) Gecko/1.4 Firefox/60',
     },
     resolutions: {
         type: 'array',
         default: ['1920x1080']
+    },
+    config: {
+        type: 'string',
+        default: null,
+        description: 'Configuration file'
+    },
+    'concurrency-jpg': {
+        type: 'number',
+        default: 2,
+        description: 'Concurrency jpg'
+    },
+    'concurrency-api': {
+        type: 'number',
+        default: 10,
+        description: 'Concurrency api'
     }
 };
+const queues = {
+    'jpg': null,
+    'api': null
+};
+let configured = false;
+function configure(params) {
+    queues['jpg'] = new PQueue.default({ concurrency: params.concurrency_jpg });
+    queues['api'] = new PQueue.default({ concurrency: params.concurrency_api });
+    configured = true;
+}
+exports.configure = configure;
 async function takeAshot(request) {
+    if (!configured)
+        configure({ concurrency_api: request["concurrency-api"], concurrency_jpg: request["concurrency-jpg"] });
     const encodedQuery = encodeURI(request.query);
     const now = new Date().toISOString()
         .replace(/:/g, '-')
@@ -74,6 +110,7 @@ async function takeAshot(request) {
     await mkdirp(request.computedPath);
     if (request.ecosia)
         await call({
+            queue: queues['jpg'],
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&p=' + (page - 1);
@@ -90,6 +127,7 @@ async function takeAshot(request) {
         });
     if (request.lilo)
         await call({
+            queue: queues['jpg'],
             baseUrl: buildUrlLilo(request.query),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&page=' + page;
@@ -106,6 +144,7 @@ async function takeAshot(request) {
         });
     if (request.bing)
         await call({
+            queue: queues['jpg'],
             baseUrl: buildUrlBing(request.query),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&first=' + (7 * (page + 1));
@@ -122,6 +161,7 @@ async function takeAshot(request) {
         });
     if (request.edu)
         await call({
+            queue: queues['api'],
             baseUrl: buildUrlJunior(request.query, 'edu'),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
@@ -146,6 +186,7 @@ async function takeAshot(request) {
         });
     if (request.egp)
         await call({
+            queue: queues['api'],
             baseUrl: buildUrlJunior(request.query, 'egp'),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
@@ -170,6 +211,7 @@ async function takeAshot(request) {
         });
     if (request.lite)
         await call({
+            queue: queues['jpg'],
             baseUrl: buildUrlWeb(request.query),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&page=' + page;
@@ -186,6 +228,7 @@ async function takeAshot(request) {
         });
     if (request.api)
         await call({
+            queue: queues['api'],
             baseUrl: buildUrlApi(request.query),
             loader: async (page, baseUrl) => {
                 const url = baseUrl + '&offset=' + (10 * page);

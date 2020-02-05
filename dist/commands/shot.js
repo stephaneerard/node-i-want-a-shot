@@ -7,6 +7,7 @@ exports.builder = Helper_1.builder;
 exports.handler = async function (argv) {
     const request = {
         query: argv.query,
+        config: argv.config,
         api: argv.api,
         lite: argv.lite,
         edu: argv.edu,
@@ -18,6 +19,8 @@ exports.handler = async function (argv) {
         basePath: argv.path,
         userAgent: argv.userAgent,
         resolutions: argv.resolutions,
+        "concurrency-api": argv["concurrency-api"],
+        "concurrency-jpg": argv["concurrency-jpg"],
     };
     await Helper_1.takeAshot(request);
 };

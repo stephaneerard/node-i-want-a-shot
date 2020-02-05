@@ -2,10 +2,12 @@ import * as path from "path"
 import * as requester from 'request-promise-native'
 import * as fs from 'fs-extra'
 import * as mkdirp from 'mkdirp-promise'
+import * as PQueue from 'p-queue'
 
 const Pageres = require('pageres');
 
 export interface ArgvInterface {
+    config: string
     query: string
     lite: boolean
     api: boolean
@@ -18,9 +20,12 @@ export interface ArgvInterface {
     pages: number
     userAgent: string
     resolutions: Array<string>
+    'concurrency-api': number
+    'concurrency-jpg': number
 }
 
 export interface RequestInterface {
+    config?: string
     query: string
     basePath: string
     computedPath?: string
@@ -34,6 +39,8 @@ export interface RequestInterface {
     pages: number
     userAgent: string
     resolutions: Array<string>
+    'concurrency-api': number
+    'concurrency-jpg': number
 }
 
 interface CallArgsInterface {
@@ -41,13 +48,17 @@ interface CallArgsInterface {
     pages: number
     loader: (page: number, baseUrl: string) => Promise<void>
     path: string
+    queue: PQueue.Queue<any>
 }
+
 
 async function call(args: CallArgsInterface): Promise<void> {
     const promises: Array<Promise<void>> = (() => {
         const _promises = [];
         for (let i = 0, j = args.pages; i < j; i++) {
-            const _p = args.loader(i + 1, args.baseUrl);
+            const _p = (<any>(args.queue)).add(() => {
+                return args.loader(i + 1, args.baseUrl)
+            });
             _promises.push(_p);
         }
         return _promises;
@@ -86,6 +97,11 @@ export const builder = {
     ecosia: {
         type: 'boolean',
         default: true,
+        description: 'Take a ECOSIA shot !'
+    },
+    lilo: {
+        type: 'boolean',
+        default: true,
         description: 'Take a LILO shot !'
     },
     pages: {
@@ -98,18 +114,46 @@ export const builder = {
     },
     'user-agent': {
         type: 'string',
-        default: 'Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion',
+        default: 'Mozilla/5.0 (platform; rv:1) Gecko/1.4 Firefox/60',
     },
     resolutions: {
         type: 'array',
         default: ['1920x1080']
+    },
+    config: {
+        type: 'string',
+        default: null,
+        description: 'Configuration file'
+    },
+    'concurrency-jpg': {
+        type: 'number',
+        default: 2,
+        description: 'Concurrency jpg'
+    },
+    'concurrency-api': {
+        type: 'number',
+        default: 10,
+        description: 'Concurrency api'
     }
 };
 
+const queues = {
+    'jpg': null,
+    'api': null
+}
+let configured = false;
+
+export function configure(params: { concurrency_jpg: number, concurrency_api: number }) {
+    queues['jpg'] = new PQueue.default({concurrency: params.concurrency_jpg});
+    queues['api'] = new PQueue.default({concurrency: params.concurrency_api});
+    configured = true;
+}
 
 export async function takeAshot(request: RequestInterface): Promise<void> {
-    const encodedQuery = encodeURI(request.query);
+    if (!configured)
+        configure({concurrency_api: request["concurrency-api"], concurrency_jpg: request["concurrency-jpg"]});
 
+    const encodedQuery = encodeURI(request.query);
     const now = new Date().toISOString()
         .replace(/:/g, '-')
         .replace(/\./g, '-')
@@ -123,6 +167,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.ecosia)
         await call({
+            queue: <any>queues['jpg'],
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&p=' + (page - 1);
@@ -142,6 +187,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.lilo)
         await call({
+            queue: <any>queues['jpg'],
             baseUrl: buildUrlLilo(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&page=' + page;
@@ -161,6 +207,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.bing)
         await call({
+            queue: <any>queues['jpg'],
             baseUrl: buildUrlBing(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&first=' + (7 * (page + 1));
@@ -180,6 +227,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.edu)
         await call({
+            queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'edu'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
@@ -210,6 +258,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.egp)
         await call({
+            queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'egp'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
@@ -240,6 +289,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.lite)
         await call({
+            queue: <any>queues['jpg'],
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&page=' + page;
@@ -260,6 +310,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.api)
         await call({
+            queue: <any>queues['api'],
             baseUrl: buildUrlApi(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&offset=' + (10 * page);
