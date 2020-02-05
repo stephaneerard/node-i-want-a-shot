@@ -14,6 +14,7 @@ export interface ArgvInterface {
     resolutions: Array<string>;
     'concurrency-api': number;
     'concurrency-jpg': number;
+    'delay-ms': number;
 }
 export interface RequestInterface {
     config?: string;
@@ -32,6 +33,7 @@ export interface RequestInterface {
     resolutions: Array<string>;
     'concurrency-api': number;
     'concurrency-jpg': number;
+    'delay-ms': number;
 }
 export declare const builder: {
     lite: {
@@ -96,6 +98,11 @@ export declare const builder: {
         description: string;
     };
     'concurrency-api': {
+        type: string;
+        default: number;
+        description: string;
+    };
+    'delay-ms': {
         type: string;
         default: number;
         description: string;

@@ -4,8 +4,6 @@ import * as fs from 'fs-extra'
 import * as mkdirp from 'mkdirp-promise'
 import * as PQueue from 'p-queue'
 
-const Pageres = require('pageres');
-
 export interface ArgvInterface {
     config: string
     query: string
@@ -22,6 +20,7 @@ export interface ArgvInterface {
     resolutions: Array<string>
     'concurrency-api': number
     'concurrency-jpg': number
+    'delay-ms': number
 }
 
 export interface RequestInterface {
@@ -41,6 +40,7 @@ export interface RequestInterface {
     resolutions: Array<string>
     'concurrency-api': number
     'concurrency-jpg': number
+    'delay-ms': number
 }
 
 interface CallArgsInterface {
@@ -49,6 +49,7 @@ interface CallArgsInterface {
     loader: (page: number, baseUrl: string) => Promise<void>
     path: string
     queue: PQueue.Queue<any>
+    'delay-ms': number
 }
 
 
@@ -57,7 +58,11 @@ async function call(args: CallArgsInterface): Promise<void> {
         const _promises = [];
         for (let i = 0, j = args.pages; i < j; i++) {
             const _p = (<any>(args.queue)).add(() => {
-                return args.loader(i + 1, args.baseUrl)
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        resolve(args.loader(i + 1, args.baseUrl))
+                    }, args["delay-ms"])
+                },)
             });
             _promises.push(_p);
         }
@@ -134,6 +139,11 @@ export const builder = {
         type: 'number',
         default: 10,
         description: 'Concurrency api'
+    },
+    'delay-ms': {
+        type: 'number',
+        default: 400,
+        description: 'Delay between requests'
     }
 };
 
@@ -159,6 +169,10 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
         .replace(/\./g, '-')
     ;
 
+    async function load() {
+
+    }
+
     request.computedPath = path.join(request.basePath, encodedQuery, now);
 
     console.log('mkdir: ' + request.computedPath);
@@ -167,19 +181,31 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.ecosia)
         await call({
-            queue: <any>queues['jpg'],
+            "delay-ms": request["delay-ms"],
+            queue: <any>queues['api'],
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&p=' + (page - 1);
-                await new Pageres(
-                    {
-                        delay: 2
-                    })
-                    .src(url, request.resolutions)
-                    .dest(request.computedPath)
-                    .run();
+                const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
 
-                console.log('Done %s %s', url, request.computedPath);
+                const jso = JSON.parse(json);
+
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
+
+                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
             path: request.computedPath
@@ -187,19 +213,31 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.lilo)
         await call({
-            queue: <any>queues['jpg'],
+            "delay-ms": request["delay-ms"],
+            queue: <any>queues['api'],
             baseUrl: buildUrlLilo(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&page=' + page;
-                await new Pageres(
-                    {
-                        delay: 2
-                    })
-                    .src(url, request.resolutions)
-                    .dest(request.computedPath)
-                    .run();
+                const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
 
-                console.log('Done %s %s', url, request.computedPath);
+                const jso = JSON.parse(json);
+
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
+
+                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
             path: request.computedPath
@@ -207,26 +245,40 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.bing)
         await call({
-            queue: <any>queues['jpg'],
+            "delay-ms": request["delay-ms"],
+            queue: <any>queues['api'],
             baseUrl: buildUrlBing(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
-                const url = baseUrl + '&first=' + (7 * (page + 1));
-                await new Pageres(
-                    {
-                        delay: 2
-                    })
-                    .src(url, request.resolutions)
-                    .dest(request.computedPath)
-                    .run();
+                const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
 
-                console.log('Done %s %s', url, request.computedPath);
+                const jso = JSON.parse(json);
+
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
+
+                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
             path: request.computedPath
         });
 
+
     if (request.edu)
         await call({
+            "delay-ms": request["delay-ms"],
             queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'edu'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
@@ -258,6 +310,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.egp)
         await call({
+            "delay-ms": request["delay-ms"],
             queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'egp'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
@@ -289,19 +342,31 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.lite)
         await call({
+            "delay-ms": request["delay-ms"],
             queue: <any>queues['jpg'],
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&page=' + page;
-                await new Pageres(
-                    {
-                        delay: 2
-                    })
-                    .src(url, request.resolutions)
-                    .dest(request.computedPath)
-                    .run();
+                const json = await requester({
+                    url: url,
+                    headers: {
+                        'User-Agent': request.userAgent
+                    }
+                });
 
-                console.log('Done %s %s', url, request.computedPath);
+                const jso = JSON.parse(json);
+
+                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+                        .toISOString()
+                        .replace(/:/g, '-')
+                        .replace(/\./g, '-')
+                    ;
+
+                const jsonFilepath = path.join(request.computedPath, 'API__' + page + '.json');
+                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
+
+                console.log('Done %s %s', url, jsonFilepath);
             },
             pages: request.pages,
             path: request.computedPath
@@ -310,6 +375,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
 
     if (request.api)
         await call({
+            "delay-ms": request["delay-ms"],
             queue: <any>queues['api'],
             baseUrl: buildUrlApi(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
