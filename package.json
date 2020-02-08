@@ -1,6 +1,7 @@
 {
   "author": "Stephane Erard <serard06@protonmail.com",
   "dependencies": {
+    "@log4js-node/log4js-api": "^1.0.2",
     "fs-extra": "^8.1.0",
     "mkdirp-promise": "^5.0.1",
     "p-queue": "^6.2.1",

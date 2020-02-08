@@ -2,7 +2,8 @@ import * as path from "path"
 import * as requester from 'request-promise-native'
 import * as fs from 'fs-extra'
 import * as mkdirp from 'mkdirp-promise'
-import * as PQueue from 'p-queue'
+import * as Chain from "@frenchex/chained-promise-event-emitter-lib"
+import * as log4js from '@log4js-node/log4js-api'
 
 export interface ArgvInterface {
     config: string
@@ -48,30 +49,8 @@ interface CallArgsInterface {
     pages: number
     loader: (page: number, baseUrl: string) => Promise<void>
     path: string
-    queue: PQueue.Queue<any>
     'delay-ms': number
 }
-
-
-async function call(args: CallArgsInterface): Promise<void> {
-    const promises: Array<Promise<void>> = (() => {
-        const _promises = [];
-        for (let i = 0, j = args.pages; i < j; i++) {
-            const _p = (<any>(args.queue)).add(() => {
-                return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        resolve(args.loader(i + 1, args.baseUrl))
-                    }, args["delay-ms"])
-                },)
-            });
-            _promises.push(_p);
-        }
-        return _promises;
-    })();
-
-    await Promise.all(promises)
-}
-
 
 export const builder = {
     lite: {
@@ -147,21 +126,89 @@ export const builder = {
     }
 };
 
+const logger = log4js.getLogger('app');
+logger.level = 'debug';
+const chain = new Chain.ChainedPromiseEventEmitter(logger);
+
+function call(args: CallArgsInterface) {
+    const innerChain = new Chain.ChainedPromiseEventEmitter(logger);
+    for (let i = 0, j = args.pages; i < j; i++) {
+        innerChain
+            .chain('url', (resolve, reject) => {
+                console.log('url %s %s', i + 1, args.baseUrl);
+                setTimeout(() => {
+                    args.loader(i + 1, args.baseUrl)
+                        .then(<any>resolve)
+                        .catch(<any>reject)
+                }, args["delay-ms"]);
+            });
+    }
+
+    chain.chain(args.baseUrl, (resolve, reject) => {
+        innerChain
+            .promise()
+            .then(() => {
+                resolve();
+                console.log('Done %s %s', args.baseUrl, args.pages);
+            })
+            .catch(<any>reject)
+        ;
+
+        innerChain.run();
+    });
+}
+
 const queues = {
     'jpg': null,
     'api': null
-}
-let configured = false;
+};
 
-export function configure(params: { concurrency_jpg: number, concurrency_api: number }) {
-    queues['jpg'] = new PQueue.default({concurrency: params.concurrency_jpg});
-    queues['api'] = new PQueue.default({concurrency: params.concurrency_api});
-    configured = true;
+async function consumeApi(url, page, baseUrl, request, kind) {
+
+    const json = await (async () => {
+        try {
+            return (await requester({
+                url: url,
+                headers: {
+                    'User-Agent': request.userAgent,
+                    'accept-language': 'en-US,en;q=0.9',
+                    'sec-fetch-mode': 'no-cors',
+                    'sec-fetch-site': 'same-site',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36',
+                }
+            })).toString();
+        } catch (e) {
+            console.error(e);
+            return {
+                _internalShotError: true,
+                error: JSON.stringify(e.toString(), null, 2)
+            }
+        }
+
+    })();
+
+    const jso = (() => {
+        try {
+            return JSON.parse(json);
+        } catch (e) {
+            return json
+        }
+    })();
+
+    if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+        jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
+            .toISOString()
+            .replace(/:/g, '-')
+            .replace(/\./g, '-')
+        ;
+
+    const jsonFilepath = path.join(request.computedPath, kind + '__' + page + '.json');
+    await fs.writeFile(jsonFilepath, jso ? JSON.stringify(jso, null, 2) : json);
+
+    console.log('Done %s %s', url, jsonFilepath);
 }
 
 export async function takeAshot(request: RequestInterface): Promise<void> {
-    if (!configured)
-        configure({concurrency_api: request["concurrency-api"], concurrency_jpg: request["concurrency-jpg"]});
 
     const encodedQuery = encodeURI(request.query);
     const now = new Date().toISOString()
@@ -169,242 +216,101 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
         .replace(/\./g, '-')
     ;
 
-    async function load() {
-
-    }
-
     request.computedPath = path.join(request.basePath, encodedQuery, now);
 
     console.log('mkdir: ' + request.computedPath);
 
-    await mkdirp(request.computedPath);
+    chain.chain('mkdir', (resolve, reject) => {
+        return mkdirp(request.computedPath)
+    })
 
     if (request.ecosia)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'ecosia');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
     if (request.lilo)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlLilo(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'lilo');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
     if (request.bing)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlBing(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'bing');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
 
     if (request.edu)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'edu'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'EDU__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'edu');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
     if (request.egp)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlJunior(request.query, 'egp'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'EGP__' + (page + 1) + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'egp');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
     if (request.lite)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['jpg'],
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&page=' + page;
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'API__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'lite');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
 
     if (request.api)
-        await call({
+        call({
             "delay-ms": request["delay-ms"],
-            queue: <any>queues['api'],
             baseUrl: buildUrlApi(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&offset=' + (10 * page);
-                const json = await requester({
-                    url: url,
-                    headers: {
-                        'User-Agent': request.userAgent
-                    }
-                });
-
-                const jso = JSON.parse(json);
-
-                if (jso && jso.data && jso.data.cache && jso.data.cache.created)
-                    jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
-                        .toISOString()
-                        .replace(/:/g, '-')
-                        .replace(/\./g, '-')
-                    ;
-
-                const jsonFilepath = path.join(request.computedPath, 'API__' + page + '.json');
-                await fs.writeFile(jsonFilepath, JSON.stringify(jso, null, 2));
-
-                console.log('Done %s %s', url, jsonFilepath);
+                return consumeApi(url, page, baseUrl, request, 'api');
             },
             pages: request.pages,
             path: request.computedPath
-        });
+        })
 
+    await chain.run();
 
     console.log('Done %s', request.computedPath);
 }

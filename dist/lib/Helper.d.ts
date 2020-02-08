@@ -108,8 +108,4 @@ export declare const builder: {
         description: string;
     };
 };
-export declare function configure(params: {
-    concurrency_jpg: number;
-    concurrency_api: number;
-}): void;
 export declare function takeAshot(request: RequestInterface): Promise<void>;
