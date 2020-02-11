@@ -163,7 +163,7 @@ const queues = {
     'api': null
 };
 
-async function consumeApi(url, page, baseUrl, request, kind) {
+async function consumeApi(url, page, baseUrl, request, kind, outFileExt) {
 
     const json = await (async () => {
         try {
@@ -184,26 +184,25 @@ async function consumeApi(url, page, baseUrl, request, kind) {
                 error: JSON.stringify(e.toString(), null, 2)
             }
         }
-
     })();
 
     const jso = (() => {
         try {
-            return JSON.parse(json);
+            return json[0] === '{' ? JSON.parse(json) : json;
         } catch (e) {
             return json
         }
     })();
 
-    if (jso && jso.data && jso.data.cache && jso.data.cache.created)
+    if (jso && 'object' === typeof jso && jso.data && jso.data.cache && jso.data.cache.created)
         jso.data.cache.createdFormattedDate = new Date(jso.data.cache.created * 1000)
             .toISOString()
             .replace(/:/g, '-')
             .replace(/\./g, '-')
         ;
 
-    const jsonFilepath = path.join(request.computedPath, kind + '__' + page + '.json');
-    await fs.writeFile(jsonFilepath, jso ? JSON.stringify(jso, null, 2) : json);
+    const jsonFilepath = path.join(request.computedPath, kind + '__' + page + '.' + outFileExt);
+    await fs.writeFile(jsonFilepath, 'object' === typeof jso ? JSON.stringify(jso, null, 2) : json);
 
     console.log('Done %s %s', url, jsonFilepath);
 }
@@ -230,7 +229,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlEcosia(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                return consumeApi(url, page, baseUrl, request, 'ecosia');
+                return consumeApi(url, page, baseUrl, request, 'ecosia', 'html');
             },
             pages: request.pages,
             path: request.computedPath
@@ -242,7 +241,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlLilo(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                return consumeApi(url, page, baseUrl, request, 'lilo');
+                return consumeApi(url, page, baseUrl, request, 'lilo', 'html');
             },
             pages: request.pages,
             path: request.computedPath
@@ -254,7 +253,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlBing(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                return consumeApi(url, page, baseUrl, request, 'bing');
+                return consumeApi(url, page, baseUrl, request, 'bing', 'html');
             },
             pages: request.pages,
             path: request.computedPath
@@ -267,7 +266,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlJunior(request.query, 'edu'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                return consumeApi(url, page, baseUrl, request, 'edu');
+                return consumeApi(url, page, baseUrl, request, 'edu', 'json');
             },
             pages: request.pages,
             path: request.computedPath
@@ -279,7 +278,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlJunior(request.query, 'egp'),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&count=' + (10 * (page + 1)) + '&offset=' + (page * 10);
-                return consumeApi(url, page, baseUrl, request, 'egp');
+                return consumeApi(url, page, baseUrl, request, 'egp', 'json');
             },
             pages: request.pages,
             path: request.computedPath
@@ -291,7 +290,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlWeb(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&page=' + page;
-                return consumeApi(url, page, baseUrl, request, 'lite');
+                return consumeApi(url, page, baseUrl, request, 'lite', 'html');
             },
             pages: request.pages,
             path: request.computedPath
@@ -304,7 +303,7 @@ export async function takeAshot(request: RequestInterface): Promise<void> {
             baseUrl: buildUrlApi(request.query),
             loader: async (page: number, baseUrl: string): Promise<void> => {
                 const url = baseUrl + '&offset=' + (10 * page);
-                return consumeApi(url, page, baseUrl, request, 'api');
+                return consumeApi(url, page, baseUrl, request, 'api', 'json');
             },
             pages: request.pages,
             path: request.computedPath
